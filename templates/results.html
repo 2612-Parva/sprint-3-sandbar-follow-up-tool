@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Show review · Sandbar</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell wide">
+    <nav class="topbar">
+      <a href="/">← New upload</a>
+      <span class="build-marker">Build {{ result.build_version or 'unknown' }}</span>
+    </nav>
+
+    <header class="results-hero">
+      <div>
+        <h1>Show follow-up review</h1>
+      </div>
+      <div class="metrics">
+        <div><strong>{{ result.counts.people }}</strong><span>People</span></div>
+        <div><strong>{{ result.counts.drafts }}</strong><span>Drafts</span></div>
+        <div><strong>{{ result.counts.excluded }}</strong><span>Excluded</span></div>
+        <div><strong>{{ result.counts.needs_check }}</strong><span>Needs check</span></div>
+      </div>
+    </header>
+
+    <section class="status-panel">
+      <div class="section-title">
+        <h2>Nadia’s four piles</h2>
+      </div>
+      {% if result.has_after %}
+        <p class="date-window">{{ result.show_city }}, {{ result.show_start }} to {{ result.show_end }}. After-show window: <strong>{{ result.date_min }}</strong> to <strong>{{ result.date_max }}</strong>.</p>
+        {% if result.window_warning %}
+          <p class="warning"><strong>{{ result.window_warning }}</strong></p>
+        {% endif %}
+        <div class="pile-grid">
+          {% for label in ['booked a demo', 'started a trial', 'we wrote and nothing came of it', 'we never wrote at all'] %}
+            <div>
+              <strong>{{ result.piles.get(label, 0) }}</strong>
+              <span>{{ label }}</span>
+              <small>{{ result.pile_names.get(label, [])|join(', ') or 'None' }}</small>
+            </div>
+          {% endfor %}
+        </div>
+        <p class="substatus"><strong>Booked without Sandbar writing:</strong> {{ result.booked_without_writing|join(', ') or 'None found' }}</p>
+        <p class="substatus"><strong>Bounced:</strong> {{ result.bounced|join(', ') or 'None found' }}</p>
+      {% else %}
+        <p class="empty">After-show data not uploaded. Four-pile status cannot be computed. Drafts are still ready.</p>
+      {% endif %}
+    </section>
+
+    <section>
+      <div class="section-title">
+        <h2>Drafts ready to review</h2>
+      </div>
+      <div class="card-list">
+        {% for person in result.drafts %}
+          <article class="person-card priority-{{ person.priority }}">
+            <div class="person-head">
+              <div>
+                <p class="person-name">{{ person.name }}</p>
+                <p class="clinic">{{ person.clinic }}{% if person.city %} · {{ person.city }}{% endif %}</p>
+              </div>
+              <span class="priority">{{ person.priority|upper }}</span>
+            </div>
+            <div class="facts">
+              <span>{{ person.next_step }}</span>
+              <span>from {{ person.sender }}</span>
+              {% if person.reply_visibility %}<span class="warning">{{ person.reply_visibility }}</span>{% endif %}
+            </div>
+            <p class="reason-line">{{ person.reason }}</p>
+            {% if person.divergence %}<p class="reason-line">{{ person.divergence }}</p>{% endif %}
+            <p class="reason-line muted">
+              Merged from {{ person.sources|length }} record{% if person.sources|length != 1 %}s{% endif %}:
+              {{ person.merge_reason }}
+              {% if person.sources %}
+                ({{ person.sources|map(attribute='id')|join(', ') }})
+              {% endif %}
+            </p>
+            {% if person.status %}
+              <p class="reason-line"><strong>Day-30:</strong> {{ person.status }}</p>
+            {% endif %}
+            <pre class="draft" id="draft-{{ loop.index }}">{{ person.draft }}</pre>
+            <div class="card-actions">
+              <button type="button" class="copy" data-target="draft-{{ loop.index }}">Copy draft</button>
+            </div>
+          </article>
+        {% else %}
+          <p class="empty">No safe drafts were produced.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel clinics">
+      <div class="section-title">
+        <h2>Clinics to check — tick existing customers</h2>
+      </div>
+      {% if result.clinics %}
+        <form method="post" action="/mark-customers">
+          {% if result.run_id %}
+            <input type="hidden" name="run_id" value="{{ result.run_id }}">
+          {% endif %}
+          <ul class="clinic-list">
+            {% for clinic in result.clinics %}
+              <li>
+                <label>
+                  <input type="checkbox" name="customer_clinics" value="{{ clinic }}"
+                         {% if clinic in result.checked_clinics %}checked{% endif %}>
+                  {{ clinic }}
+                </label>
+              </li>
+            {% endfor %}
+          </ul>
+          <button type="submit" class="primary">Save ticks and re-run</button>
+        </form>
+      {% else %}
+        <p class="empty">No clinics to check.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel needs">
+      <div class="section-title">
+        <h2>Needs check</h2>
+      </div>
+      {% if result.needs_check %}
+        <ul class="decision-list">
+          {% for item in result.needs_check %}
+            <li><strong>{{ item.id }}</strong><span>{{ item.text }}</span><p>{{ item.reason }}</p></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty">No unresolved records.</p>
+      {% endif %}
+    </section>
+
+    <section class="panel excluded">
+      <div class="section-title">
+        <h2>Excluded, with reasons</h2>
+      </div>
+      <ul class="decision-list">
+        {% for person in result.excluded %}
+          <li>
+            <strong>{{ person.name or 'Unnamed record' }}</strong>
+            <span>{{ person.clinic }}</span>
+            <p>{{ person.exclusion_reason }}</p>
+          </li>
+        {% else %}
+          <li><p>No exclusions.</p></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll(".copy").forEach(button => {
+      button.addEventListener("click", async () => {
+        const text = document.getElementById(button.dataset.target).innerText;
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied";
+        setTimeout(() => button.textContent = "Copy draft", 1200);
+      });
+    });
+  </script>
+</body>
+</html>

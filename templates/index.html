@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sandbar Follow-up Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">Local review tool</p>
+      <h1>Turn booth notes into safe follow-up drafts</h1>
+      <p>Upload a show’s files. The assistant matches records, explains every decision, and prepares drafts. Nothing is sent and nothing leaves this machine.</p>
+    </header>
+
+    {% if error %}
+      <div class="alert" role="alert"><strong>Cannot run:</strong> {{ error }}</div>
+    {% endif %}
+
+    <form class="upload-card" method="post" action="/run" enctype="multipart/form-data">
+      <div class="form-heading">
+        <div>
+          <p class="step">New show</p>
+          <h2>Upload source files</h2>
+        </div>
+        <span class="local-badge">Local only</span>
+      </div>
+
+      <div class="file-grid">
+        <label class="file-field">
+          <span>Badge scans CSV <b>Required</b></span>
+          <input type="file" name="badge_scans" accept=".csv,text/csv" required>
+          <small>Scan IDs, contact details, consent, ratings and notes.</small>
+        </label>
+        <label class="file-field">
+          <span>Booth notes JSON <b>Required</b></span>
+          <input type="file" name="booth_notes" accept=".json,application/json" required>
+          <small>Cards, voice-note transcripts and Owen’s plane list.</small>
+        </label>
+        <label class="file-field">
+          <span>After-show sheet CSV <b>Required for day-30 view</b></span>
+          <input type="file" name="after_show" accept=".csv,text/csv" required>
+          <small>This show’s 30 days of emails, bookings, and trials.</small>
+        </label>
+      </div>
+
+      <div class="privacy-note">
+        <strong>Before you run</strong>
+        <span>No email is sent. No inbox, booking page, CRM, cloud model or API is contacted.</span>
+      </div>
+      <button class="primary" type="submit">Run local review</button>
+    </form>
+    <footer class="build-footer">
+      <small>{{ build_version or 'dev' }}</small>
+    </footer>
+  </main>
+</body>
+</html>
